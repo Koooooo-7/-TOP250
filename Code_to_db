@@ -1,0 +1,87 @@
+import  requests
+from  bs4 import BeautifulSoup
+import  csv
+import os
+import time
+from  connection1 import  Db
+class Douban250():
+        headers = {"User-Agent":
+                            "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chro\
+                 me/49.0.2623.221 Safari/537.36 SE 2.X MetaSr 1.0"}
+
+        def __init__(self,url):
+            self.url=url
+
+        def get_url(self,headers=headers):
+            url = self.url
+            resp = requests.get(url, headers=headers, timeout=2)
+            resp.encoding = "utf-8"
+            soup = BeautifulSoup(resp.text, "html.parser")
+            infoList = soup.find(class_="grid_view").find_all("li")
+            try:
+               next_link=soup.find(attrs={"rel":"next"})["href"]
+            except:
+
+                print("到最后一页了！")
+                #print(infoList)
+                return infoList, 0  # 最后一个页面和  下一页连接（不存在）
+            else:
+           # if next_link :
+                print(next_link)
+                #print(img_src)
+                return infoList,next_link #整个页面信息和下一页连接
+
+
+        def get_one_info(self,info):  #提取一部电影信息
+            title = info.find(class_="title")
+            actor = info.find("p")
+            actor = actor.get_text("", r"<br/>")  # 除去br标签
+            star =  info.find(class_="rating_num")
+            try:                                         #有存在没有queto的情况
+              quote = info.find(class_="inq")
+              quote=quote.text
+            except:
+               quote=""
+
+            img_src = info.find("img")["src"]
+            #print(title.text, actor, star.text, quote.text, img_src)
+            return  title.text, actor, star.text, quote, img_src
+
+"""
+        def save_info(self,get_one_info): #将一部电影信息写入csv
+             #print(get_info)
+             with open("Save.csv","a+",encoding="utf-8",newline="") as fo :  #定义编码，去除空行
+                 writer=csv.writer(fo)
+                 writer.writerow(get_one_info)
+
+"""
+
+
+
+if __name__=="__main__":
+     ori_url = r"https://movie.douban.com/top250"
+   #  dir_ls=os.listdir()          #检测文件是否存在，存在则删除，新建
+  #   if "Save.csv" in dir_ls:
+   #      os.remove("Save.csv")
+   #  with open("Save.csv","w+",newline="",encoding="utf-8") as f:  #创建列名
+    #     writer=csv.writer(f)
+     #    writer.writerow(("电影名","信息","评分","一句","图片link"))
+
+     db=Db("localhost", "root", "123456", "douban250")
+     db.creat_db()
+     new_url = ori_url
+     while True:
+         time.sleep(1)
+         douban250 = Douban250(new_url)
+         info_ls, next_url = douban250.get_url()
+         for info in info_ls:
+             get_one_info=douban250.get_one_info(info)
+             print(type(get_one_info))
+             db.inser_data(*get_one_info)
+             #douban250.save_info(get_one_info)
+         if next_url:
+            new_url=ori_url+next_url         #构造新url
+         else:break
+
+
+
